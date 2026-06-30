@@ -70,4 +70,3 @@ agent-orchestration-mcp/
 
 `main` is the default branch. All file changes land via **feature branches and pull
 requests** — see the "Git & PR workflow" section in [`DESIGN.md`](./DESIGN.md).
-# agent-orchestration-mcp
