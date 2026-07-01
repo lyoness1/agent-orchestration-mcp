@@ -1,26 +1,30 @@
 """Coordinates the agent pipeline that answers a question."""
 
-from maestro.mcp_client import MaestroMcpClient
+from __future__ import annotations
+
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
+
+from maestro.mcp_client import MaestroMcpClient, default_mcp_client_factory
 from maestro.models import Report
 
-# Temporary probe URL until the Researcher agent owns web retrieval (Slice 5).
-_PROBE_URL = "https://example.com/"
+PROBE_URL = "https://example.com/"
+
+McpClientFactory = Callable[[], AbstractAsyncContextManager[MaestroMcpClient]]
 
 
 class Orchestrator:
-    """Runs the agent pipeline end to end.
+    """Runs the agent pipeline end to end."""
 
-    v1 fetches one page via MCP and puts the text in the report summary. Planner,
-    Researcher, Analyst, and Editor replace this path in later slices.
-    """
+    def __init__(
+        self,
+        *,
+        mcp_client_factory: McpClientFactory = default_mcp_client_factory,
+    ) -> None:
+        self._mcp_client_factory = mcp_client_factory
 
-    async def run(self, question: str, *, mcp_client: MaestroMcpClient | None = None) -> Report:
+    async def run(self, question: str) -> Report:
         """Answer ``question`` and return the resulting Report."""
-        if mcp_client is not None:
-            return await self._run_with_mcp(question, mcp_client)
-        async with MaestroMcpClient() as client:
-            return await self._run_with_mcp(question, client)
-
-    async def _run_with_mcp(self, question: str, mcp: MaestroMcpClient) -> Report:
-        summary = await mcp.fetch_url(_PROBE_URL)
-        return Report(question=question, summary=summary)
+        async with self._mcp_client_factory() as mcp:
+            summary = await mcp.fetch_url(PROBE_URL)
+            return Report(question=question, summary=summary)

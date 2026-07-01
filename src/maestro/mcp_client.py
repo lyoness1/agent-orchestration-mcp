@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 from contextlib import AsyncExitStack
@@ -12,12 +13,19 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 from mcp import ClientSession, StdioServerParameters, stdio_client
 from mcp.shared.message import SessionMessage
 
+_SERVER_STDERR = open(os.devnull, "w")  # noqa: SIM115
+
 
 def default_server_params() -> StdioServerParameters:
     """Return stdio parameters to launch the local maestro-mcp server."""
     if command := shutil.which("maestro-mcp"):
         return StdioServerParameters(command=command)
     return StdioServerParameters(command=sys.executable, args=["-m", "maestro.mcp_server"])
+
+
+def default_mcp_client_factory() -> MaestroMcpClient:
+    """Return a connected MCP client context manager for production use."""
+    return MaestroMcpClient()
 
 
 def _text_from_result(result: types.CallToolResult) -> str:
@@ -59,10 +67,9 @@ class MaestroMcpClient:
             return
 
         stack = AsyncExitStack()
-        # stdio subprocess in production; inject streams in tests (see test_mcp_client).
         if self._streams is None:
             read_stream, write_stream = await stack.enter_async_context(
-                stdio_client(self._server_params)
+                stdio_client(self._server_params, errlog=_SERVER_STDERR)
             )
         else:
             read_stream, write_stream = self._streams

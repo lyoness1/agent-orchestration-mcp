@@ -3,9 +3,9 @@
 `maestro` is a multi-agent system that researches a prompt and writes a cited report, using
 LLMs, agents, and the Model Context Protocol (MCP).
 
-> **Status:** early development. Running `maestro` fetches a probe page via the MCP client
-> and puts the text in the report summary; agents and full research pipeline come next.
-> API keys are introduced only when a step requires them.
+> **Status:** early development. Running `maestro` fetches a page via the MCP client
+> and puts the text in the report summary. API keys are introduced only when a step
+> requires them.
 
 ## Architecture
 

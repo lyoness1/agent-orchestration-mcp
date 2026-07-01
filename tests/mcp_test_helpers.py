@@ -13,6 +13,8 @@ from mcp import StdioServerParameters
 from maestro.mcp_client import MaestroMcpClient
 from maestro.mcp_server.server import mcp as maestro_mcp_server
 
+DEFAULT_PAGE_TEXT = "Hello from MCP"
+
 
 def server_params() -> StdioServerParameters:
     return StdioServerParameters(command=sys.executable, args=["-m", "maestro.mcp_server"])
@@ -61,3 +63,10 @@ async def in_process_client() -> AsyncIterator[MaestroMcpClient]:
         )
         async with MaestroMcpClient(streams=(client_read_recv, client_write_send)) as client:
             yield client
+
+
+@asynccontextmanager
+async def in_process_mcp_session() -> AsyncIterator[MaestroMcpClient]:
+    """Async context manager factory for Orchestrator dependency injection."""
+    async with in_process_client() as client:
+        yield client

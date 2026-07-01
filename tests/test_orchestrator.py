@@ -1,33 +1,27 @@
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from maestro.models import Report
-from maestro.orchestrator import _PROBE_URL, Orchestrator
-from mcp_test_helpers import in_process_client, mock_response
+from maestro.orchestrator import PROBE_URL
+from mcp_test_helpers import DEFAULT_PAGE_TEXT, mock_response
 
 
-def test_run_returns_report_for_question() -> None:
-    report = asyncio.run(Orchestrator().run("What is MCP?"))
+def test_run_fetches_url_and_builds_report(orchestrator, mock_fetch_http: MagicMock) -> None:
+    report = asyncio.run(orchestrator.run("What is MCP?"))
 
     assert isinstance(report, Report)
     assert report.question == "What is MCP?"
+    assert report.summary == DEFAULT_PAGE_TEXT
+    mock_fetch_http.get.assert_called_once_with(PROBE_URL)
 
 
-@patch("maestro.mcp_server.fetch_url.httpx.Client")
-def test_run_fetches_probe_url_via_mcp(mock_client_cls: MagicMock) -> None:
-    page_text = "Hello from MCP"
-    mock_client = MagicMock()
-    mock_client_cls.return_value.__enter__.return_value = mock_client
-    mock_client.get.return_value = mock_response(
-        text=f"<html><body><p>{page_text}</p></body></html>",
-        url=_PROBE_URL,
+def test_run_surfaces_fetch_errors(orchestrator, mock_fetch_http: MagicMock) -> None:
+    mock_fetch_http.get.return_value = mock_response(
+        status_code=404,
+        text="Not Found",
+        url=PROBE_URL,
     )
 
-    async def run() -> Report:
-        async with in_process_client() as client:
-            return await Orchestrator().run("What is MCP?", mcp_client=client)
+    report = asyncio.run(orchestrator.run("What is MCP?"))
 
-    report = asyncio.run(run())
-
-    assert report.summary == page_text
-    mock_client.get.assert_called_once_with(_PROBE_URL)
+    assert report.summary == f"Error: {PROBE_URL} returned HTTP 404."
