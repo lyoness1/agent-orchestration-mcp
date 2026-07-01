@@ -1,18 +1,26 @@
 """Coordinates the agent pipeline that answers a question."""
 
+from maestro.mcp_client import MaestroMcpClient
 from maestro.models import Report
+
+# Temporary probe URL until the Researcher agent owns web retrieval (Slice 5).
+_PROBE_URL = "https://example.com/"
 
 
 class Orchestrator:
     """Runs the agent pipeline end to end.
 
-    Returns an empty report for now. The planner, researcher, analyst, and
-    editor agents are added one tested behavior at a time in later steps.
+    v1 fetches one page via MCP and puts the text in the report summary. Planner,
+    Researcher, Analyst, and Editor replace this path in later slices.
     """
 
-    # `run` is async even though the body currently does no I/O: the real
-    # pipeline will `await` the LLM and MCP tool calls. Committing to async now
-    # avoids having to change this signature and every caller later.
-    async def run(self, question: str) -> Report:
+    async def run(self, question: str, *, mcp_client: MaestroMcpClient | None = None) -> Report:
         """Answer ``question`` and return the resulting Report."""
-        return Report(question=question)
+        if mcp_client is not None:
+            return await self._run_with_mcp(question, mcp_client)
+        async with MaestroMcpClient() as client:
+            return await self._run_with_mcp(question, client)
+
+    async def _run_with_mcp(self, question: str, mcp: MaestroMcpClient) -> Report:
+        summary = await mcp.fetch_url(_PROBE_URL)
+        return Report(question=question, summary=summary)
