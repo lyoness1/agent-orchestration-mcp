@@ -4,13 +4,16 @@ version = "0.1.0"
 description = "A multi-agent system that researches a prompt and writes a cited report, using LLMs, agents, and the Model Context Protocol (MCP)."
 readme = "README.md"
 requires-python = ">=3.12"
-# Runtime dependencies are intentionally empty for now; each one is added in the
-# PR that first needs it (e.g. anthropic, mcp, tavily) to keep installs lean.
-dependencies = []
+# Runtime deps are added in the PR that first needs them to keep installs lean.
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp>=1.28.1",
+]
 
 # Registers the `maestro` command (wired to cli.main) when the project is installed.
 [project.scripts]
 maestro = "maestro.cli:main"
+maestro-mcp = "maestro.mcp_server.server:main"
 
 # Dev-only tools: installed for contributors and CI, never for end users.
 [dependency-groups]
