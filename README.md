@@ -42,6 +42,16 @@ python -m maestro "What are the trade-offs of MCP versus plain function calling?
 
 Or run without activating: `uv run maestro "..."`.
 
+### MCP tool server
+
+Start the fetch-url MCP server (stdio transport) in a separate process:
+
+```bash
+uv run maestro-mcp
+# equivalently:
+uv run python -m maestro.mcp_server
+```
+
 ## Development
 
 With the environment activated (no prefix needed):
@@ -67,6 +77,7 @@ agent-orchestration-mcp/
 │   ├── __main__.py               # enables `python -m maestro`
 │   ├── cli.py                    # command-line entry point
 │   ├── orchestrator.py           # coordinates the agent pipeline
-│   └── models.py                 # shared data types (Report, ...)
+│   ├── models.py                 # shared data types (Report, ...)
+│   └── mcp_server/               # standalone MCP tool server (fetch_url)
 └── tests/                        # pytest suite
 ```
