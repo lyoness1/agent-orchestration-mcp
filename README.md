@@ -67,9 +67,12 @@ check, and tests on every pull request to `main`.
 
 ## Project structure
 
+`DESIGN.md` describes the target layout. This tree reflects what exists today:
+
 ```
 agent-orchestration-mcp/
 ├── pyproject.toml                # project metadata, dependencies, tooling config
+├── DESIGN.md                     # architecture and design decisions
 ├── .pre-commit-config.yaml       # ruff lint/format on commit
 ├── .github/workflows/ci.yml      # lint + test on each PR
 ├── src/maestro/
