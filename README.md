@@ -9,11 +9,10 @@ LLMs, agents, and the Model Context Protocol (MCP).
 
 ## Architecture
 
-- **Orchestrator** — runs a pipeline of specialized agents (planner → researcher → analyst →
-  editor). Agents are roles within a single application process.
-- **MCP tool server** — a standalone process exposing web-research tools; the application
-  connects to it as an MCP client.
-- **LLM** — the Anthropic API powers the agents and the tool-use loop.
+Maestro coordinates four agent roles (planner → researcher → analyst → editor) in one
+application process, talks to a standalone MCP tool server over stdio, and calls the
+Anthropic API for LLM steps. For process model, agent roles, architecture tradeoffs,
+and v1 scope, see **[DESIGN.md](DESIGN.md)**.
 
 ## Prerequisites
 
@@ -68,9 +67,12 @@ check, and tests on every pull request to `main`.
 
 ## Project structure
 
+`DESIGN.md` describes the target layout. This tree reflects what exists today:
+
 ```
 agent-orchestration-mcp/
 ├── pyproject.toml                # project metadata, dependencies, tooling config
+├── DESIGN.md                     # architecture and design decisions
 ├── .pre-commit-config.yaml       # ruff lint/format on commit
 ├── .github/workflows/ci.yml      # lint + test on each PR
 ├── src/maestro/
