@@ -1,0 +1,17 @@
+# Runs the project's own ruff (pinned in uv.lock) so pre-commit and CI never
+# disagree on lint/format. Requires uv to be installed.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false

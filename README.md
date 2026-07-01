@@ -1,72 +1,72 @@
 # agent-orchestration-mcp
 
-A learning project that **builds and orchestrates a team of LLM agents** which collaborate
-to research a question and produce a cited report. It uses:
+`maestro` is a multi-agent system that researches a prompt and writes a cited report, using
+LLMs, agents, and the Model Context Protocol (MCP).
 
-- **Multiple agents** (Planner → Researcher → Analyst/Synthesizer → Editor) coordinated by an orchestrator.
-- The **Model Context Protocol (MCP)**: a standalone tool *server* (web search + page fetch) that the app connects to as an MCP *client*.
-- An **LLM SDK** (Anthropic / Claude) with a hand-rolled tool-use loop.
-- **Live web retrieval** (RAG-adjacent grounding) so answers are backed by real sources.
+> **Status:** early development. The orchestration entry point is in place and currently
+> returns an empty report; agents and tools are added one tested behavior at a time. API keys
+> are introduced only when a step requires them.
 
-> This repo is a personal learning project. The code is intentionally **stubbed and
-> heavily commented** to teach the concepts. See [`DESIGN.md`](./DESIGN.md) for the full
-> architecture, the process model, and the rationale behind every decision.
+## Architecture
 
-## Status
+- **Orchestrator** — runs a pipeline of specialized agents (planner → researcher → analyst →
+  editor). Agents are roles within a single application process.
+- **MCP tool server** — a standalone process exposing web-research tools; the application
+  connects to it as an MCP client.
+- **LLM** — the Anthropic API powers the agents and the tool-use loop.
 
-🚧 **Skeleton / scaffolding.** Functions are stubbed with docstrings, TODOs, and concept
-notes. v1 logic is not implemented yet.
+## Prerequisites
 
-## At a glance
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) for dependency and environment management
 
-- **Runtime processes (v1):** 2 local processes — the app (MCP *client*) and the stdio MCP
-  *server* — plus the remote Anthropic API. (Agents are *roles within one process*, not
-  separate processes. See DESIGN.md.)
-- **Transport:** stdio for v1, with a wrapper that lets us migrate to Streamable HTTP later.
-- **Search:** Tavily (free tier) by default, with DuckDuckGo as a no-key fallback.
-
-## Quickstart (placeholder — not runnable yet)
+## Installation
 
 ```bash
-# 1. Create and activate a virtual environment
-python -m venv .venv && source .venv/bin/activate
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Configure secrets
-cp .env.example .env   # then edit .env and add your keys
-
-# 4. (Once implemented) run a research task
-python main.py "What are the trade-offs of MCP vs. plain function calling?"
+uv sync
 ```
 
-## Project layout
+This creates a project-local virtual environment in `.venv/` and installs dependencies.
+
+## Usage
+
+Activate the environment, then run the CLI:
+
+```bash
+source .venv/bin/activate
+
+maestro "What are the trade-offs of MCP versus plain function calling?"
+# equivalently:
+python -m maestro "What are the trade-offs of MCP versus plain function calling?"
+```
+
+Or run without activating: `uv run maestro "..."`.
+
+## Development
+
+With the environment activated (no prefix needed):
+
+```bash
+pytest                 # run the test suite
+ruff check .           # lint
+ruff format .          # format
+pre-commit install     # optional: run ruff automatically on each commit
+```
+
+Any command also works prefixed with `uv run`. Continuous integration runs lint, format
+check, and tests on every pull request to `main`.
+
+## Project structure
 
 ```
 agent-orchestration-mcp/
-├── README.md
-├── DESIGN.md                 # full design doc — start here
-├── requirements.txt
-├── .env.example
-├── .gitignore
-├── mcp_server/               # the MCP TOOL SERVER (decoupled from agents)
-│   └── research_tools.py     # web_search + fetch_url tools (FastMCP, stdio)
-├── orchestration/            # the APP: agents + orchestrator + MCP client
-│   ├── config.py
-│   ├── llm.py                # Anthropic wrapper + hand-rolled agent loop
-│   ├── mcp_client.py         # MCP client session factory (parallel-ready)
-│   ├── state.py              # ResearchState shared between agents
-│   ├── orchestrator.py       # wires planner -> researcher(s) -> analyst -> editor
-│   └── agents/
-│       ├── planner.py
-│       ├── researcher.py
-│       ├── analyst.py
-│       └── editor.py
-└── main.py                   # CLI entrypoint
+├── pyproject.toml                # project metadata, dependencies, tooling config
+├── .pre-commit-config.yaml       # ruff lint/format on commit
+├── .github/workflows/ci.yml      # lint + test on each PR
+├── src/maestro/
+│   ├── __main__.py               # enables `python -m maestro`
+│   ├── cli.py                    # command-line entry point
+│   ├── orchestrator.py           # coordinates the agent pipeline
+│   └── models.py                 # shared data types (Report, ...)
+└── tests/                        # pytest suite
 ```
-
-## Git & PR workflow
-
-`main` is the default branch. All file changes land via **feature branches and pull
-requests** — see the "Git & PR workflow" section in [`DESIGN.md`](./DESIGN.md).
