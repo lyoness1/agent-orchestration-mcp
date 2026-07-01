@@ -1,0 +1,29 @@
+name: CI
+
+# Run on every pull request into main so unformatted, failing, or unlinted
+# code can't be merged.
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      # --frozen installs the EXACT versions pinned in uv.lock and fails if the
+      # lockfile is out of date, so CI reproduces local environments exactly.
+      - name: Install dependencies (locked versions)
+        run: uv sync --frozen
+      - name: Lint
+        run: uv run ruff check .
+      # --check only VERIFIES formatting and fails if anything is off; it does
+      # not rewrite files (which would be pointless in CI).
+      - name: Check formatting
+        run: uv run ruff format --check .
+      - name: Test
+        run: uv run pytest

@@ -1,0 +1,45 @@
+[project]
+name = "maestro"
+version = "0.1.0"
+description = "A multi-agent system that researches a prompt and writes a cited report, using LLMs, agents, and the Model Context Protocol (MCP)."
+readme = "README.md"
+requires-python = ">=3.12"
+# Runtime dependencies are intentionally empty for now; each one is added in the
+# PR that first needs it (e.g. anthropic, mcp, tavily) to keep installs lean.
+dependencies = []
+
+# Registers the `maestro` command (wired to cli.main) when the project is installed.
+[project.scripts]
+maestro = "maestro.cli:main"
+
+# Dev-only tools: installed for contributors and CI, never for end users.
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# src/ layout: the importable package lives under src/maestro. This keeps it off
+# sys.path unless the project is actually installed, avoiding accidental imports.
+[tool.hatch.build.targets.wheel]
+packages = ["src/maestro"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+# Rule groups: E/F = pycodestyle/pyflakes, I = import sorting, UP = pyupgrade
+# (modernize syntax), B = flake8-bugbear (catches likely bugs).
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+# pythonpath = ["src"] lets pytest import the package from src/ without needing
+# a separate editable install first.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
