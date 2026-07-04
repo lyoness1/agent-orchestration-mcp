@@ -108,7 +108,7 @@ sequenceDiagram
     S-->>MC: text result
     MC-->>R: tool_result
     R->>API: continue until stop
-    R-->>R: emit SourceBundle
+    R-->>R: emit ResearchSources
 ```
 
 
@@ -168,8 +168,8 @@ illustrative; exact types are implemented with frozen dataclasses.
 ```mermaid
 flowchart LR
     Q["question: str"] --> RP["ResearchPlan"]
-    RP --> SB["SourceBundle"]
-    SB --> AN["Analysis"]
+    RP --> RS["ResearchSources"]
+    RS --> AN["Analysis"]
     AN --> REP["Report"]
 ```
 
@@ -183,7 +183,7 @@ flowchart LR
 | Artifact       | Producer   | Consumer     | Purpose                                         |
 | -------------- | ---------- | ------------ | ----------------------------------------------- |
 | `ResearchPlan` | Planner    | Researcher   | What to research: subtopics, queries, seed URLs |
-| `SourceBundle` | Researcher | Analyst      | Raw evidence retrieved from the web             |
+| `ResearchSources` | Researcher | Analyst      | Raw evidence retrieved from the web             |
 | `Analysis`     | Analyst    | Editor       | Structured findings with citation keys          |
 | `Report`       | Editor     | CLI / caller | Final human-readable cited output               |
 
@@ -213,10 +213,10 @@ flowchart LR
 
 
 
-### `SourceBundle`
+### `ResearchSources`
 
 **Purpose:** Collected web evidence before synthesis. Fan-in merges multiple
-Researcher outputs into one bundle for the Analyst.
+Researcher outputs into one `ResearchSources` for the Analyst.
 
 
 | Field      | Type               | Description                     |
@@ -230,11 +230,12 @@ Researcher outputs into one bundle for the Analyst.
 
 | Field          | Type  | Description                                          |
 | -------------- | ----- | ---------------------------------------------------- |
-| `citation_key` | `str` | Stable id for references (e.g. `src-1`)              |
+| `citation_key` | `str` | Stable id for references (e.g. `ref-1`)              |
 | `url`          | `str` | Source URL                                           |
-| `title`        | `str` | Page or result title, if available                   |
 | `excerpt`      | `str` | Text returned by the tool (possibly truncated)       |
 | `tool`         | `str` | Which tool produced this (`fetch_url`, `web_search`) |
+
+`title` is omitted until `fetch_url` returns page metadata.
 
 
 
@@ -296,8 +297,9 @@ flowchart LR
 
 
 
-In v1 the Planner stub emits a single `PlanItem` and one Researcher runs; the
-diagram structure is unchanged when fanning out to N researchers.
+In v1 the Planner stub lives in the orchestrator (`stub_research_plan`): it emits
+a single `PlanItem` and one Researcher runs; the diagram structure is unchanged
+when fanning out to N researchers.
 
 ## Components and repository structure
 
@@ -313,6 +315,7 @@ agent-orchestration-mcp/
 │   ├── __main__.py              # `python -m maestro`
 │   ├── cli.py                   # CLI entry point
 │   ├── orchestrator.py          # wires the agent pipeline
+│   ├── constants.py             # shared constants (e.g. probe URLs in dev)
 │   ├── models.py                # pipeline artifacts + Report
 │   ├── mcp_client.py            # MCP session, tool bridge, invoke
 │   ├── llm.py                   # Anthropic client + tool-use loop

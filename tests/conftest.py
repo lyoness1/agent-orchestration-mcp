@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from maestro.constants import PROBE_URL
 from maestro.mcp_client import MaestroMcpClient
-from maestro.orchestrator import PROBE_URL
 from mcp_test_helpers import DEFAULT_PAGE_TEXT, in_process_mcp_session, mock_response
 
 McpClientFactory = Callable[[], AbstractAsyncContextManager[MaestroMcpClient]]

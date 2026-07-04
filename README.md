@@ -3,9 +3,9 @@
 `maestro` is a multi-agent system that researches a prompt and writes a cited report, using
 LLMs, agents, and the Model Context Protocol (MCP).
 
-> **Status:** early development. Running `maestro` fetches a page via the MCP client
-> and puts the text in the report summary. API keys are introduced only when a step
-> requires them.
+> **Status:** early development. Running `maestro` runs the Researcher agent, which
+> fetches a page via MCP and returns `ResearchSources` shaped into the report.
+> API keys are introduced only when a step requires them.
 
 ## Architecture
 
@@ -79,8 +79,11 @@ agent-orchestration-mcp/
 │   ├── __main__.py               # enables `python -m maestro`
 │   ├── cli.py                    # command-line entry point
 │   ├── orchestrator.py           # coordinates the agent pipeline
+│   ├── constants.py              # shared constants (e.g. probe URLs in dev)
+│   ├── agents/
+│   │   └── researcher.py         # gathers web evidence via MCP (stub)
 │   ├── mcp_client.py             # MCP session; spawns maestro-mcp, fetch_url
-│   ├── models.py                 # shared data types (Report, ...)
+│   ├── models.py                 # shared data types (ResearchPlan, ResearchSources, ...)
 │   └── mcp_server/               # standalone MCP tool server (fetch_url)
 └── tests/                        # pytest suite
 ```
