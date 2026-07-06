@@ -477,6 +477,10 @@ bridged tool-use loop → Analyst → Editor), stdio MCP transport, `fetch_url` 
 `web_search` tools, hand-rolled Anthropic tool-use loop, and a cited `Report` on
 the CLI.
 
+**Next slice (logging):** verbose pipeline progress via `maestro -v` is specified
+on branch **`docs/logging-slice`** (see that branch's `DESIGN.md` for incremental
+slices and logging conventions).
+
 **Future options worth revisiting** (not commitments):
 
 - **Streamable HTTP** for MCP when remote or shared tool servers are needed.

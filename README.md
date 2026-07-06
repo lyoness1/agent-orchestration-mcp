@@ -72,6 +72,12 @@ pre-commit install     # optional: run ruff automatically on each commit
 Any command also works prefixed with `uv run`. Continuous integration runs lint, format
 check, and tests on every pull request to `main`.
 
+### Upcoming: verbose logging
+
+The **verbose pipeline logging** slice (`maestro -v`, progress on stderr) is
+specified on branch **`docs/logging-slice`**. Check out that branch for the slice
+plan and logging design in `DESIGN.md`.
+
 ## Project structure
 
 `DESIGN.md` describes the target layout. This tree reflects what exists today:
