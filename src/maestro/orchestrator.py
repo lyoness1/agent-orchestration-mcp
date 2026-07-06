@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager
-
 from maestro.agents import researcher
-from maestro.mcp_client import MaestroMcpClient, default_mcp_client_factory
+from maestro.llm import LlmFactory, default_llm_factory
+from maestro.mcp_client import McpClientFactory, default_mcp_client_factory
 from maestro.models import PlanItem, Report, ResearchPlan, ResearchSources
-
-McpClientFactory = Callable[[], AbstractAsyncContextManager[MaestroMcpClient]]
 
 
 def stub_research_plan(question: str) -> ResearchPlan:
@@ -18,22 +14,20 @@ def stub_research_plan(question: str) -> ResearchPlan:
 
 
 def research_sources_to_report(sources: ResearchSources) -> Report:
-    """Turn research sources into a report summary and bibliography.
+    """Turn research sources into a readable report for the CLI.
 
-    Temporary shaping until Editor exists: summary is raw excerpts with citation
-    keys, not synthesized prose.
+    Answer comes from the model's final turn; sources list URLs with citation keys.
     """
     if not sources.sources:
-        return Report(question=sources.question, summary="(no sources retrieved)")
+        return Report(
+            question=sources.question,
+            summary="No web pages were retrieved.",
+            sources=(),
+        )
 
-    parts = [
-        f"[{source.citation_key}] {source.url}\n{source.excerpt}" for source in sources.sources
-    ]
-    return Report(
-        question=sources.question,
-        summary="\n\n".join(parts),
-        sources=tuple(source.url for source in sources.sources),
-    )
+    answer = sources.answer or "Research finished, but the model did not return text."
+    bibliography = tuple(f"[{s.citation_key}] {s.url}" for s in sources.sources)
+    return Report(question=sources.question, summary=answer, sources=bibliography)
 
 
 class Orchestrator:
@@ -43,12 +37,15 @@ class Orchestrator:
         self,
         *,
         mcp_client_factory: McpClientFactory = default_mcp_client_factory,
+        llm_factory: LlmFactory = default_llm_factory,
     ) -> None:
         self._mcp_client_factory = mcp_client_factory
+        self._llm_factory = llm_factory
 
     async def run(self, question: str) -> Report:
         """Answer ``question`` and return the resulting Report."""
         plan = stub_research_plan(question)
+        llm = self._llm_factory()
         async with self._mcp_client_factory() as mcp:
-            sources = await researcher.research(plan, mcp)
+            sources = await researcher.research(plan, mcp, llm)
         return research_sources_to_report(sources)

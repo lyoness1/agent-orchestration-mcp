@@ -2,7 +2,7 @@ import asyncio
 from unittest.mock import MagicMock
 
 from maestro.agents.researcher import research
-from maestro.constants import PROBE_URL
+from maestro.llm import MOCK_FETCH_URL, MOCK_RESEARCH_DONE_TEXT, default_llm_factory
 from maestro.models import PlanItem, ResearchPlan, ResearchSources
 from mcp_test_helpers import DEFAULT_PAGE_TEXT, in_process_client, mock_response
 
@@ -12,7 +12,7 @@ def test_research_returns_research_sources(mock_fetch_http: MagicMock) -> None:
 
     async def run() -> ResearchSources:
         async with in_process_client() as mcp:
-            return await research(plan, mcp)
+            return await research(plan, mcp, default_llm_factory())
 
     sources = asyncio.run(run())
 
@@ -21,10 +21,11 @@ def test_research_returns_research_sources(mock_fetch_http: MagicMock) -> None:
     assert len(sources.sources) == 1
     source = sources.sources[0]
     assert source.citation_key == "ref-1"
-    assert source.url == PROBE_URL
+    assert source.url == MOCK_FETCH_URL
     assert source.tool == "fetch_url"
     assert DEFAULT_PAGE_TEXT in source.excerpt
-    mock_fetch_http.get.assert_called_once_with(PROBE_URL)
+    assert sources.answer == MOCK_RESEARCH_DONE_TEXT
+    mock_fetch_http.get.assert_called_once_with(MOCK_FETCH_URL)
 
 
 def test_research_processes_each_plan_item(mock_fetch_http: MagicMock) -> None:
@@ -38,7 +39,7 @@ def test_research_processes_each_plan_item(mock_fetch_http: MagicMock) -> None:
 
     async def run() -> ResearchSources:
         async with in_process_client() as mcp:
-            return await research(plan, mcp)
+            return await research(plan, mcp, default_llm_factory())
 
     sources = asyncio.run(run())
 
@@ -53,15 +54,15 @@ def test_research_surfaces_fetch_errors_in_excerpt(mock_fetch_http: MagicMock) -
     mock_fetch_http.get.return_value = mock_response(
         status_code=404,
         text="Not Found",
-        url=PROBE_URL,
+        url=MOCK_FETCH_URL,
     )
     plan = ResearchPlan(question="What is MCP?", items=(PlanItem(subtopic="What is MCP?"),))
 
     async def run() -> ResearchSources:
         async with in_process_client() as mcp:
-            return await research(plan, mcp)
+            return await research(plan, mcp, default_llm_factory())
 
     sources = asyncio.run(run())
 
     assert len(sources.sources) == 1
-    assert sources.sources[0].excerpt == f"Error: {PROBE_URL} returned HTTP 404."
+    assert sources.sources[0].excerpt == f"Error: {MOCK_FETCH_URL} returned HTTP 404."

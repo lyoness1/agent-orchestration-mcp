@@ -18,6 +18,7 @@ def test_main_with_question_prints_report(
     out = capsys.readouterr().out
     assert exit_code == 0
     assert "Question: What is MCP?" in out
+    assert "Answer:" in out
     assert "MCP connects LLMs to tools." in out
 
 

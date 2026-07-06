@@ -44,6 +44,7 @@ class ResearchSources:
 
     question: str
     sources: tuple[Source, ...]
+    answer: str = ""  # Model's final text after fetching (until Analyst synthesizes)
 
 
 @dataclass(frozen=True)
@@ -55,7 +56,7 @@ class Report:
     """
 
     question: str
-    summary: str = ""
+    summary: str = ""  # Answer shown to the user (model prose until Editor refines it)
     # A tuple is immutable, which matches frozen=True: unlike a list it can't be
     # mutated in place (no .append), so a Report is genuinely read-only. An empty
     # tuple is a safe default and needs no default_factory.
@@ -63,6 +64,12 @@ class Report:
 
     def render(self) -> str:
         """Return a human-readable, multi-line view of the report."""
-        summary = self.summary or "(no summary yet)"
-        sources = "\n".join(f"- {source}" for source in self.sources) or "(none yet)"
-        return f"Question: {self.question}\n\nSummary: {summary}\n\nSources:\n{sources}"
+        answer = self.summary or "(no answer yet)"
+        lines = [f"Question: {self.question}", "", "Answer:", answer, ""]
+        if self.sources:
+            lines.append("Sources:")
+            lines.extend(f"  {entry}" for entry in self.sources)
+        else:
+            lines.append("Sources:")
+            lines.append("  (none)")
+        return "\n".join(lines)

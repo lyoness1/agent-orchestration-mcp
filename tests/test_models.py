@@ -5,22 +5,24 @@ def test_render_includes_question_and_placeholders() -> None:
     text = Report(question="What is MCP?").render()
 
     assert "Question: What is MCP?" in text
-    assert "(no summary yet)" in text
-    assert "(none yet)" in text
+    assert "Answer:" in text
+    assert "(no answer yet)" in text
+    assert "Sources:" in text
+    assert "(none)" in text
 
 
 def test_render_lists_sources() -> None:
     report = Report(
         question="What is MCP?",
-        summary="A short summary.",
-        sources=("https://a.example", "https://b.example"),
+        summary="MCP connects LLMs to tools.",
+        sources=("[ref-1] https://a.example", "[ref-2] https://b.example"),
     )
 
     text = report.render()
 
-    assert "A short summary." in text
-    assert "- https://a.example" in text
-    assert "- https://b.example" in text
+    assert "MCP connects LLMs to tools." in text
+    assert "[ref-1] https://a.example" in text
+    assert "[ref-2] https://b.example" in text
 
 
 def test_research_plan_holds_items() -> None:
