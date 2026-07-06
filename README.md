@@ -3,9 +3,8 @@
 `maestro` is a multi-agent system that researches a prompt and writes a cited report, using
 LLMs, agents, and the Model Context Protocol (MCP).
 
-> **Status:** early development. Running `maestro` runs the Researcher through a
-> tool-use loop (mock Claude by default; set `ANTHROPIC_API_KEY` for the real API).
-> Fetched page text is stored as sources and shaped into the report.
+> **Status:** early development. By default `maestro` replays local mock LLM responses (no
+> API key). Use `maestro --live "…"` with `ANTHROPIC_API_KEY` for real Claude calls.
 
 ## Architecture
 
@@ -41,6 +40,14 @@ python -m maestro "What are the trade-offs of MCP versus plain function calling?
 
 Or run without activating: `uv run maestro "..."`.
 
+By default the CLI replays mock responses from `llm_mock_responses.py` (no API key).
+For real Anthropic calls:
+
+```bash
+cp .env.example .env   # add ANTHROPIC_API_KEY
+uv run maestro --live "What is MCP?"
+```
+
 ### MCP tool server
 
 Start the fetch-url MCP server (stdio transport) in a separate process:
@@ -73,13 +80,15 @@ check, and tests on every pull request to `main`.
 agent-orchestration-mcp/
 ├── pyproject.toml                # project metadata, dependencies, tooling config
 ├── DESIGN.md                     # architecture and design decisions
+├── .env.example                  # ANTHROPIC_API_KEY template for --live
 ├── .pre-commit-config.yaml       # ruff lint/format on commit
 ├── .github/workflows/ci.yml      # lint + test on each PR
 ├── src/maestro/
 │   ├── __main__.py               # enables `python -m maestro`
 │   ├── cli.py                    # command-line entry point
 │   ├── orchestrator.py           # coordinates the agent pipeline
-│   ├── llm.py                    # LlmClient and tool-use loop
+│   ├── llm.py                    # LlmClient, default_llm_factory()
+│   ├── llm_mock_responses.py     # fetch/done mock ModelMessage replies
 │   ├── agents/
 │   │   └── researcher.py         # gathers web evidence via MCP (stub)
 │   ├── mcp_client.py             # MCP session; spawns maestro-mcp, fetch_url

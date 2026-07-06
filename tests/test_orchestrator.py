@@ -1,7 +1,7 @@
 import asyncio
 from unittest.mock import MagicMock
 
-from maestro.llm import MOCK_FETCH_URL, MOCK_RESEARCH_DONE_TEXT
+from maestro.llm_mock_responses import EXAMPLE_URL, RESEARCH_ANSWER
 from maestro.models import Report, ResearchSources, Source
 from maestro.orchestrator import Orchestrator, research_sources_to_report, stub_research_plan
 from mcp_test_helpers import mock_response
@@ -22,23 +22,22 @@ def test_run_delegates_to_researcher_and_builds_report(
 
     assert isinstance(report, Report)
     assert report.question == "What is MCP?"
-    assert report.summary == MOCK_RESEARCH_DONE_TEXT
-    assert report.sources == (f"[ref-1] {MOCK_FETCH_URL}",)
-    mock_fetch_http.get.assert_called_once_with(MOCK_FETCH_URL)
+    assert report.summary == RESEARCH_ANSWER
+    assert report.sources == (f"[ref-1] {EXAMPLE_URL}",)
+    mock_fetch_http.get.assert_called_once_with(EXAMPLE_URL)
 
 
 def test_run_surfaces_fetch_errors(orchestrator: Orchestrator, mock_fetch_http: MagicMock) -> None:
     mock_fetch_http.get.return_value = mock_response(
         status_code=404,
         text="Not Found",
-        url=MOCK_FETCH_URL,
+        url=EXAMPLE_URL,
     )
 
     report = asyncio.run(orchestrator.run("What is MCP?"))
 
-    assert report.summary == MOCK_RESEARCH_DONE_TEXT
-    assert report.sources == (f"[ref-1] {MOCK_FETCH_URL}",)
-    assert f"Error: {MOCK_FETCH_URL} returned HTTP 404." not in report.summary
+    assert report.summary == RESEARCH_ANSWER
+    assert report.sources == (f"[ref-1] {EXAMPLE_URL}",)
 
 
 def test_research_sources_to_report_with_sources() -> None:

@@ -36,16 +36,18 @@ class Orchestrator:
     def __init__(
         self,
         *,
+        live: bool = False,
         mcp_client_factory: McpClientFactory = default_mcp_client_factory,
         llm_factory: LlmFactory = default_llm_factory,
     ) -> None:
+        self._live = live
         self._mcp_client_factory = mcp_client_factory
         self._llm_factory = llm_factory
 
     async def run(self, question: str) -> Report:
         """Answer ``question`` and return the resulting Report."""
         plan = stub_research_plan(question)
-        llm = self._llm_factory()
+        llm = self._llm_factory(self._live)
         async with self._mcp_client_factory() as mcp:
             sources = await researcher.research(plan, mcp, llm)
         return research_sources_to_report(sources)
