@@ -2,7 +2,6 @@
 
 import argparse
 import asyncio
-from dataclasses import dataclass
 
 from maestro.orchestrator import Orchestrator
 
@@ -10,14 +9,8 @@ from maestro.orchestrator import Orchestrator
 DEFAULT_QUESTION = "What is the Model Context Protocol?"
 
 
-@dataclass(frozen=True)
-class CliArgs:
-    question: str
-    live: bool
-
-
-def _parse_args(argv: list[str] | None) -> CliArgs:
-    """Parse CLI arguments.
+def _parse_question(argv: list[str] | None) -> str:
+    """Parse CLI arguments and return the question to research.
 
     ``argv`` defaults to None (argparse then reads ``sys.argv``); tests pass a
     list directly so they never have to mutate global state.
@@ -26,25 +19,23 @@ def _parse_args(argv: list[str] | None) -> CliArgs:
         prog="maestro",
         description="Research a question with a pipeline of agents and print a report.",
     )
-    parser.add_argument(
-        "--live",
-        action="store_true",
-        help="call the Anthropic API instead of replaying local mock responses",
-    )
+    # nargs="*" lets the question be typed unquoted (multiple words) and also
+    # allows zero args, which we handle with a fallback instead of erroring.
     parser.add_argument(
         "question",
         nargs="*",
         help="the question to research (falls back to a default if omitted)",
     )
     args = parser.parse_args(argv)
-    question = " ".join(args.question) or DEFAULT_QUESTION
-    return CliArgs(question=question, live=args.live)
+    return " ".join(args.question) or DEFAULT_QUESTION
 
 
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI: research the question, print the report, return an exit code."""
-    cli_args = _parse_args(argv)
-    report = asyncio.run(Orchestrator(live=cli_args.live).run(cli_args.question))
+    question = _parse_question(argv)
+    # asyncio.run is the single sync -> async boundary: the CLI stays synchronous
+    # while the orchestrator and everything it awaits are async.
+    report = asyncio.run(Orchestrator().run(question))
     print(report.render())
     return 0
 

@@ -3,8 +3,9 @@
 `maestro` is a multi-agent system that researches a prompt and writes a cited report, using
 LLMs, agents, and the Model Context Protocol (MCP).
 
-> **Status:** early development. By default `maestro` replays local mock LLM responses (no
-> API key). Use `maestro --live "…"` with `ANTHROPIC_API_KEY` for real Claude calls.
+> **Status:** early development. Running `maestro` fetches a page via the MCP client
+> and puts the text in the report summary. API keys are introduced only when a step
+> requires them.
 
 ## Architecture
 
@@ -40,14 +41,6 @@ python -m maestro "What are the trade-offs of MCP versus plain function calling?
 
 Or run without activating: `uv run maestro "..."`.
 
-By default the CLI replays mock responses from `llm_mock_responses.py` (no API key).
-For real Anthropic calls:
-
-```bash
-cp .env.example .env   # add ANTHROPIC_API_KEY
-uv run maestro --live "What is MCP?"
-```
-
 ### MCP tool server
 
 Start the fetch-url MCP server (stdio transport) in a separate process:
@@ -72,12 +65,6 @@ pre-commit install     # optional: run ruff automatically on each commit
 Any command also works prefixed with `uv run`. Continuous integration runs lint, format
 check, and tests on every pull request to `main`.
 
-### Upcoming: verbose logging
-
-The **verbose pipeline logging** slice (`maestro -v`, progress on stderr) is
-specified on branch **`docs/logging-slice`**. Check out that branch for the slice
-plan and logging design in `DESIGN.md`.
-
 ## Project structure
 
 `DESIGN.md` describes the target layout. This tree reflects what exists today:
@@ -86,19 +73,14 @@ plan and logging design in `DESIGN.md`.
 agent-orchestration-mcp/
 ├── pyproject.toml                # project metadata, dependencies, tooling config
 ├── DESIGN.md                     # architecture and design decisions
-├── .env.example                  # ANTHROPIC_API_KEY template for --live
 ├── .pre-commit-config.yaml       # ruff lint/format on commit
 ├── .github/workflows/ci.yml      # lint + test on each PR
 ├── src/maestro/
 │   ├── __main__.py               # enables `python -m maestro`
 │   ├── cli.py                    # command-line entry point
 │   ├── orchestrator.py           # coordinates the agent pipeline
-│   ├── llm.py                    # LlmClient, default_llm_factory()
-│   ├── llm_mock_responses.py     # fetch/done mock ModelMessage replies
-│   ├── agents/
-│   │   └── researcher.py         # gathers web evidence via MCP (stub)
 │   ├── mcp_client.py             # MCP session; spawns maestro-mcp, fetch_url
-│   ├── models.py                 # shared data types (ResearchPlan, ResearchSources, ...)
+│   ├── models.py                 # shared data types (Report, ...)
 │   └── mcp_server/               # standalone MCP tool server (fetch_url)
 └── tests/                        # pytest suite
 ```
