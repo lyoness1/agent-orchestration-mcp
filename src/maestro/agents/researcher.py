@@ -18,16 +18,16 @@ MAX_TOOL_TURNS = 8
 
 
 async def research(plan: ResearchPlan, mcp: MaestroMcpClient, llm: LlmClient) -> ResearchSources:
-    """Execute ``plan`` using the Anthropic tool-use pattern.
+    """Execute ``plan`` with the Anthropic tool-use loop.
 
-    For each plan item we call client.messages.create in a loop until the model
-    stops (end_turn). When the model requests fetch_url, we run MCP, append the
-    page text to the conversation, and ask again. Sources are saved in our code; the
-    model's final text becomes the report answer until Analyst/Editor exist.
+    For each plan item, call the model until it stops (end_turn). When the model
+    requests fetch_url, run MCP, record a Source, and feed the page text back as a
+    tool_result. Sources and answers accumulate across all plan items into one
+    ResearchSources: v1 runs a single Researcher over every subtopic sequentially;
+    parallel fan-out across Researchers is future work.
     """
     sources: list[Source] = []
     answers: list[str] = []
-    tools = [FETCH_URL_TOOL]
 
     for item in plan.items:
         messages: list[dict[str, Any]] = [
@@ -36,61 +36,43 @@ async def research(plan: ResearchPlan, mcp: MaestroMcpClient, llm: LlmClient) ->
 
         for _turn in range(MAX_TOOL_TURNS):
             response = llm.create_message(
-                system=RESEARCH_SYSTEM,
-                messages=messages,
-                tools=tools,
+                system=RESEARCH_SYSTEM, messages=messages, tools=[FETCH_URL_TOOL]
             )
 
             if response.stop_reason == "end_turn":
-                if text := response.text():
-                    answers.append(text)
+                if answer := response.text():
+                    answers.append(answer)
                 break
 
             if response.stop_reason != "tool_use":
-                msg = f"Unexpected stop_reason: {response.stop_reason}"
-                raise RuntimeError(msg)
+                raise RuntimeError(f"Unexpected stop_reason: {response.stop_reason}")
 
             tool_results: list[dict[str, Any]] = []
             for request in response.tool_use_requests():
-                output = await _run_fetch_url(request, mcp, sources)
+                url = str(request["input"].get("url", ""))
+                page_text = await mcp.fetch_url(url)
+                # TODO: Truncate/summarize page_text before sending it back on live
+                # runs — full pages inflate token cost. Keep the full text in
+                # Source.excerpt for the report bibliography.
+                sources.append(
+                    Source(
+                        citation_key=f"ref-{len(sources) + 1}",
+                        url=url,
+                        excerpt=page_text,
+                        tool="fetch_url",
+                    )
+                )
                 tool_results.append(
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": request["id"],
-                        "content": output,
-                    }
+                    {"type": "tool_result", "tool_use_id": request["id"], "content": page_text}
                 )
 
             messages.append({"role": "assistant", "content": list(response.content)})
             messages.append({"role": "user", "content": tool_results})
         else:
-            msg = f"Tool conversation exceeded {MAX_TOOL_TURNS} turns for subtopic: {item.subtopic}"
-            raise RuntimeError(msg)
+            raise RuntimeError(
+                f"Tool conversation exceeded {MAX_TOOL_TURNS} turns for subtopic: {item.subtopic}"
+            )
 
     return ResearchSources(
-        question=plan.question,
-        sources=tuple(sources),
-        answer="\n\n".join(answers),
+        question=plan.question, sources=tuple(sources), answer="\n\n".join(answers)
     )
-
-
-async def _run_fetch_url(
-    request: dict[str, Any],
-    mcp: MaestroMcpClient,
-    sources: list[Source],
-) -> str:
-    """Run one fetch_url tool call from the model and record a Source."""
-    if request["name"] != "fetch_url":
-        return f"Unknown tool: {request['name']}"
-
-    url = str(request["input"].get("url", ""))
-    page_text = await mcp.fetch_url(url)
-    sources.append(
-        Source(
-            citation_key=f"ref-{len(sources) + 1}",
-            url=url,
-            excerpt=page_text,
-            tool="fetch_url",
-        )
-    )
-    return page_text

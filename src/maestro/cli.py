@@ -2,6 +2,8 @@
 
 import argparse
 import asyncio
+import os
+import sys
 from dataclasses import dataclass
 
 from maestro.orchestrator import Orchestrator
@@ -44,6 +46,12 @@ def _parse_args(argv: list[str] | None) -> CliArgs:
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI: research the question, print the report, return an exit code."""
     cli_args = _parse_args(argv)
+    if cli_args.live and not os.environ.get("ANTHROPIC_API_KEY"):
+        print(
+            "ANTHROPIC_API_KEY is required when using --live. Set it in the environment or .env.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
     report = asyncio.run(Orchestrator(live=cli_args.live).run(cli_args.question))
     print(report.render())
     return 0

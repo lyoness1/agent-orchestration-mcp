@@ -2,8 +2,7 @@ import asyncio
 from unittest.mock import MagicMock
 
 from maestro.agents.researcher import research
-from maestro.llm import default_llm_factory
-from maestro.llm_mock_responses import EXAMPLE_URL, RESEARCH_ANSWER
+from maestro.llm_mock_responses import EXAMPLE_URL, RESEARCH_ANSWER, default_llm_factory
 from maestro.models import PlanItem, ResearchPlan, ResearchSources
 from mcp_test_helpers import DEFAULT_PAGE_TEXT, in_process_client, mock_response
 
@@ -46,6 +45,8 @@ def test_research_processes_each_plan_item(mock_fetch_http: MagicMock) -> None:
 
     assert sources.question == "Compare MCP and REST"
     assert len(sources.sources) == 2
+    assert sources.sources[0].citation_key == "ref-1"
+    assert sources.sources[1].citation_key == "ref-2"
     assert mock_fetch_http.get.call_count == 2
 
 

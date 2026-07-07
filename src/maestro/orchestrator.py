@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from maestro.agents import researcher
-from maestro.llm import LlmFactory, default_llm_factory
+from maestro.llm import LlmFactory
+from maestro.llm_mock_responses import default_llm_factory
 from maestro.mcp_client import McpClientFactory, default_mcp_client_factory
 from maestro.models import PlanItem, Report, ResearchPlan, ResearchSources
 

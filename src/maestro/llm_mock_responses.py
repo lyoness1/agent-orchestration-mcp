@@ -1,15 +1,13 @@
 """Scripted model replies for local runs and tests.
 
-``fetch`` and ``done`` build ``ModelMessage`` values in the same shape the Anthropic
-SDK returns. Pass them to ``replay()`` to script what the model returns each turn.
+``fetch`` and ``done`` build ``ModelMessage`` values (defined in ``llm.py``).
+``default_llm_factory()`` lives here because it wires ``LlmClient`` to the default
+mock script; keeping it here means ``llm.py`` never has to import this module.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from dataclasses import dataclass
-from itertools import cycle
-from typing import Any
+from maestro.llm import LlmClient, ModelMessage
 
 # URL the mock model puts in its fetch_url tool request.
 EXAMPLE_URL = "https://example.com/"
@@ -19,21 +17,6 @@ RESEARCH_ANSWER = (
     "Example.com is a reserved domain for documentation. "
     "I fetched the page and have enough context to stop."
 )
-
-
-@dataclass(frozen=True)
-class ModelMessage:
-    """One client.messages.create() response — what agents read each turn."""
-
-    stop_reason: str
-    content: tuple[dict[str, Any], ...]
-
-    def text(self) -> str:
-        parts = [block["text"] for block in self.content if block.get("type") == "text"]
-        return "\n".join(parts)
-
-    def tool_use_requests(self) -> tuple[dict[str, Any], ...]:
-        return tuple(block for block in self.content if block.get("type") == "tool_use")
 
 
 def fetch(url: str, *, tool_id: str) -> ModelMessage:
@@ -60,24 +43,16 @@ def done(text: str) -> ModelMessage:
 
 
 # Default script for Researcher: one fetch_url request, then one end_turn answer.
-# Cycles for each plan item (fetch → done → fetch → done → …).
 DEFAULT_RESEARCHER_REPLIES = (
     fetch(EXAMPLE_URL, tool_id="toolu_0"),
     done(RESEARCH_ANSWER),
 )
 
 
-def replay(*script: ModelMessage) -> Callable[..., ModelMessage]:
-    """Return a create_message function that plays ``script`` in order, cycling."""
-    responses = cycle(script)
+def default_llm_factory(live: bool = False) -> LlmClient:
+    """Return an LlmClient — mock replies by default, Anthropic when ``live`` is True.
 
-    def create_message(
-        *,
-        system: str,
-        messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]],
-    ) -> ModelMessage:
-        _ = system, messages, tools
-        return next(responses)
-
-    return create_message
+    The default replies are always supplied so ``live`` runs still have something to
+    fall back on if no ANTHROPIC_API_KEY is set.
+    """
+    return LlmClient(live=live, replies=DEFAULT_RESEARCHER_REPLIES)

@@ -36,7 +36,10 @@ def test_main_without_question_uses_fallback(
 
 
 @patch("maestro.cli.Orchestrator")
-def test_main_passes_live_flag_to_orchestrator(mock_orch_cls: AsyncMock) -> None:
+def test_main_passes_live_flag_to_orchestrator(
+    mock_orch_cls: AsyncMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     mock_orch_cls.return_value.run = AsyncMock(
         return_value=Report(question="What is MCP?", summary="Live answer."),
     )
@@ -55,3 +58,15 @@ def test_main_without_live_defaults_to_mock_llm(mock_orch_cls: AsyncMock) -> Non
     main(["What", "is", "MCP?"])
 
     mock_orch_cls.assert_called_once_with(live=False)
+
+
+def test_main_live_without_api_key_exits(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--live", "What", "is", "MCP?"])
+
+    assert exc_info.value.code == 1
+    assert "ANTHROPIC_API_KEY" in capsys.readouterr().err
