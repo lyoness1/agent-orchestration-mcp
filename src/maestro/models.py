@@ -4,6 +4,23 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class ResearchSource:
+    """One page or tool result gathered during a research pass."""
+
+    url: str
+    excerpt: str
+    tool: str
+
+
+@dataclass(frozen=True)
+class ResearchResults:
+    """Output of a Researcher run: gathered sources and the model's answer."""
+
+    sources: tuple[ResearchSource, ...]
+    answer: str
+
+
+@dataclass(frozen=True)
 class Report:
     """The result of a run for a single question.
 

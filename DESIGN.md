@@ -108,7 +108,7 @@ sequenceDiagram
     S-->>MC: text result
     MC-->>R: tool_result
     R->>API: continue until stop
-    R-->>R: emit SourceBundle
+    R-->>R: emit ResearchResults
 ```
 
 
@@ -124,7 +124,7 @@ responsibility so prompts, tests, and failure modes stay narrow.
 
 | Role           | Responsibility                                                                                                         | Tools                                                     |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| **Planner**    | Turn the user question into a structured research plan: subtopics, candidate URLs, and questions to answer.            | None (LLM only)                                           |
+| **Planner**    | Turn the user question into a `ResearchPlan`: one or more `ResearchTask` focus areas. | None (LLM only)                                           |
 | **Researcher** | Execute the plan: call MCP tools to fetch pages and search the web; collect raw sources with metadata.                 | MCP `fetch_url`, `web_search` (via bridged tool-use loop) |
 | **Analyst**    | Synthesize sources into findings: claims, evidence, and citation keys. Output is structured analysis, not final prose. | None (LLM only)                                           |
 | **Editor**     | Turn analysis into the final `Report`: readable markdown with inline citations and a bibliography.                     | None (LLM only)                                           |
@@ -142,19 +142,26 @@ to test synthesis independently of presentation. The Analyst output is also
 useful as an intermediate artifact (e.g. for debugging or alternate renderings)
 without re-running research.
 
-### Planner in v1
+### Planner (deferred)
 
-The Planner role exists in the architecture from the start, but v1 implements it
-as a **stub**: wrap the user question in a single-item `ResearchPlan` with no LLM
-call. The module boundary and artifact shape are stable so a real LLM-backed
-Planner (subtopic decomposition, fan-out) can replace the stub without changing
-downstream agents.
+The Planner role is part of the target architecture but **not implemented yet**.
+When it lands, an LLM-backed Planner decomposes broad questions into
+`ResearchTask` items inside a `ResearchPlan`. Optional fields such as
+`search_queries` and `seed_urls` are **Planner outputs** (proposed by the LLM,
+not discovered via tools) and are added with the Planner when `web_search` exists.
+
+Until then, the orchestrator passes the user question directly to a single
+Researcher call — no `ResearchPlan` or `ResearchTask` types in code yet.
 
 ```python
-# v1 stub — replace with LLM call when fan-out Planner is implemented
-def plan(question: str) -> ResearchPlan:
-    return ResearchPlan(question=question, items=(PlanItem(subtopic=question),))
+# Target signature when Planner exists (orchestrator fans out per task):
+async def research(question: str, task: ResearchTask, mcp, llm) -> ResearchResults:
+    ...
 ```
+
+The orchestrator owns the loop over `plan.tasks` and calls `research(question, task)`
+once per task (sequential in v1, parallel later). The Researcher never receives
+the full plan — only the shared `question` and one `ResearchTask`.
 
 
 
@@ -168,8 +175,9 @@ illustrative; exact types are implemented with frozen dataclasses.
 ```mermaid
 flowchart LR
     Q["question: str"] --> RP["ResearchPlan"]
-    RP --> SB["SourceBundle"]
-    SB --> AN["Analysis"]
+    RP --> O["Orchestrator"]
+    O --> RR["ResearchResults"]
+    RR --> AN["Analysis"]
     AN --> REP["Report"]
 ```
 
@@ -180,61 +188,65 @@ flowchart LR
 ### Handoff summary
 
 
-| Artifact       | Producer   | Consumer     | Purpose                                         |
-| -------------- | ---------- | ------------ | ----------------------------------------------- |
-| `ResearchPlan` | Planner    | Researcher   | What to research: subtopics, queries, seed URLs |
-| `SourceBundle` | Researcher | Analyst      | Raw evidence retrieved from the web             |
-| `Analysis`     | Analyst    | Editor       | Structured findings with citation keys          |
-| `Report`       | Editor     | CLI / caller | Final human-readable cited output               |
+| Artifact          | Producer   | Consumer     | Purpose                                              |
+| ----------------- | ---------- | ------------ | ---------------------------------------------------- |
+| `ResearchPlan`    | Planner    | Orchestrator | Decomposed research work (not passed to Researcher)  |
+| `ResearchResults` | Researcher | Analyst      | Sources gathered plus the researcher's answer        |
+| `Analysis`        | Analyst    | Editor       | Structured findings with citation keys               |
+| `Report`          | Editor     | CLI / caller | Final human-readable cited output                    |
 
 
 
 
 ### `ResearchPlan`
 
-**Purpose:** Decompose the user question into actionable research work.
+**Purpose:** Decompose the user question into actionable research work. Consumed by
+the orchestrator, not passed to the Researcher.
 
 
-| Field      | Type                 | Description                            |
-| ---------- | -------------------- | -------------------------------------- |
-| `question` | `str`                | Original user question                 |
-| `items`    | `tuple[PlanItem, …]` | One or more research tasks (one in v1) |
+| Field      | Type                    | Description                            |
+| ---------- | ----------------------- | -------------------------------------- |
+| `question` | `str`                   | Original user question                 |
+| `tasks`    | `tuple[ResearchTask, …]` | One or more focused research assignments |
 
 
-`PlanItem`
+`ResearchTask`
 
 
-| Field            | Type            | Description                                        |
-| ---------------- | --------------- | -------------------------------------------------- |
-| `subtopic`       | `str`           | Focus area to investigate                          |
-| `search_queries` | `tuple[str, …]` | Suggested web search queries (optional in v1 stub) |
-| `seed_urls`      | `tuple[str, …]` | URLs to fetch directly (optional)                  |
+| Field      | Type  | Description                          |
+| ---------- | ----- | ------------------------------------ |
+| `focus`    | `str` | What this research pass should investigate |
 
 
+**Added with the Planner (not in code yet):** `search_queries` and `seed_urls`
+on `ResearchTask`. The Planner LLM proposes these; the Researcher executes them
+via MCP tools (`web_search`, `fetch_url`).
 
 
-### `SourceBundle`
+### `ResearchResults`
 
-**Purpose:** Collected web evidence before synthesis. Fan-in merges multiple
-Researcher outputs into one bundle for the Analyst.
-
-
-| Field      | Type               | Description                     |
-| ---------- | ------------------ | ------------------------------- |
-| `question` | `str`              | Original question (for context) |
-| `sources`  | `tuple[Source, …]` | Retrieved documents             |
+**Purpose:** Output of one Researcher run — gathered sources plus the model's
+answer text. Fan-in merges multiple `ResearchResults` before the Analyst runs.
 
 
-`Source`
+| Field     | Type                      | Description                              |
+| --------- | ------------------------- | ---------------------------------------- |
+| `sources` | `tuple[ResearchSource, …]` | Pages and tool outputs retrieved from the web |
+| `answer`  | `str`                     | The researcher's written answer from the tool-use loop |
 
 
-| Field          | Type  | Description                                          |
-| -------------- | ----- | ---------------------------------------------------- |
-| `citation_key` | `str` | Stable id for references (e.g. `src-1`)              |
-| `url`          | `str` | Source URL                                           |
-| `title`        | `str` | Page or result title, if available                   |
-| `excerpt`      | `str` | Text returned by the tool (possibly truncated)       |
-| `tool`         | `str` | Which tool produced this (`fetch_url`, `web_search`) |
+`ResearchSource`
+
+
+| Field     | Type  | Description                                          |
+| --------- | ----- | ---------------------------------------------------- |
+| `url`     | `str` | Source URL when available (from tool arguments)      |
+| `excerpt` | `str` | Text returned by the tool (possibly truncated)       |
+| `tool`    | `str` | Which tool produced this (`fetch_url`, `web_search`) |
+
+
+**Added with the Analyst (not in code yet):** `citation_key` and `title` on
+`ResearchSource` for traceable citations.
 
 
 
@@ -257,7 +269,7 @@ Researcher outputs into one bundle for the Analyst.
 | Field           | Type            | Description                           |
 | --------------- | --------------- | ------------------------------------- |
 | `claim`         | `str`           | A single synthesized statement        |
-| `citation_keys` | `tuple[str, …]` | References into `Source.citation_key` |
+| `citation_keys` | `tuple[str, …]` | References into `ResearchSource.citation_key` |
 
 
 
@@ -278,26 +290,27 @@ Researcher outputs into one bundle for the Analyst.
 
 ## Orchestration: fan-out / fan-in
 
-The orchestrator decomposes the question, dispatches research workers, then
-synthesizes and formats the result.
+The orchestrator calls the Planner, then dispatches one Researcher per
+`ResearchTask`, merges the results, and passes them to the Analyst.
 
 ```mermaid
 flowchart LR
     Q["Question"] --> P["Planner"]
-    P --> R1["Researcher 1"]
-    P -.-> R2["Researcher 2"]
-    P -.-> Rn["Researcher N"]
-    R1 --> A["Analyst (fan-in)"]
-    R2 -.-> A
-    Rn -.-> A
+    P --> O["Orchestrator"]
+    O -->|"research(question, task)"| R1["Researcher 1"]
+    O -.->|"research(question, task)"| R2["Researcher 2"]
+    O -.->|"research(question, task)"| Rn["Researcher N"]
+    R1 --> O2["Orchestrator (fan-in)"]
+    R2 -.-> O2
+    Rn -.-> O2
+    O2 --> A["Analyst"]
     A --> E["Editor"]
     E --> OUT["Cited Report"]
 ```
 
-
-
-In v1 the Planner stub emits a single `PlanItem` and one Researcher runs; the
-diagram structure is unchanged when fanning out to N researchers.
+Until the Planner exists, the orchestrator makes a single Researcher call with
+the user question directly (no `ResearchTask`, no fan-out). The diagram
+structure is unchanged when fan-out is enabled.
 
 ## Components and repository structure
 
@@ -414,7 +427,7 @@ schemas — the standard pattern for tool-using LLM agents.
 
 |                      | Four roles (Planner, Researcher, Analyst, Editor) | Three roles (merge Planner and/or Editor)      |
 | -------------------- | ------------------------------------------------- | ---------------------------------------------- |
-| **Planner separate** | Stable interface for fan-out to N subtopics       | Orchestrator owns decomposition; fewer modules |
+| **Planner separate** | Stable interface for fan-out to N tasks; orchestrator owns the task loop | Orchestrator owns decomposition; fewer modules |
 | **Editor separate**  | Synthesis and presentation tested independently   | Analyst produces final prose; fewer LLM calls  |
 | **Complexity**       | More modules and prompts                          | Fewer boundaries                               |
 
@@ -469,10 +482,10 @@ quality; a no-key option favors zero-config development.
 
 ## v1 scope and future options
 
-**v1 delivers:** a sequential pipeline (Planner stub → one Researcher with
-bridged tool-use loop → Analyst → Editor), stdio MCP transport, `fetch_url` and
-`web_search` tools, hand-rolled Anthropic tool-use loop, and a cited `Report` on
-the CLI.
+**v1 delivers:** a Researcher with bridged tool-use loop returning
+`ResearchResults`, stdio MCP transport, `fetch_url`, hand-rolled Anthropic
+tool-use loop, and a `Report` on the CLI. Planner, Analyst, and Editor are
+deferred; the orchestrator calls the Researcher directly with the user question.
 
 **Future options worth revisiting** (not commitments):
 
