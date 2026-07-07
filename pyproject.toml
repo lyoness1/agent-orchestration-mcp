@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 # Runtime deps are added in the PR that first needs them to keep installs lean.
 dependencies = [
-    "anthropic>=0.116.0",
     "httpx>=0.28.1",
     "mcp>=1.28.1",
 ]
