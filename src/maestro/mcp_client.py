@@ -88,10 +88,32 @@ class MaestroMcpClient:
         self._stack = None
         self._session = None
 
-    async def fetch_url(self, url: str) -> str:
-        """Fetch a URL via the server's ``fetch_url`` tool."""
+    async def list_tools(self) -> list[types.Tool]:
+        """Return the tools advertised by the connected MCP server."""
         session = self._require_session()
-        result = await session.call_tool("fetch_url", {"url": url})
+        result = await session.list_tools()
+        return list(result.tools)
+
+    async def anthropic_tools(self) -> list[dict[str, object]]:
+        """Return the server's tools as Anthropic tool definitions.
+
+        The MCP tool schema (name, description, JSON Schema) maps directly onto
+        the shape the Anthropic Messages API expects under ``tools=``, so the
+        model can decide when to call each tool.
+        """
+        return [
+            {
+                "name": tool.name,
+                "description": tool.description or "",
+                "input_schema": tool.inputSchema,
+            }
+            for tool in await self.list_tools()
+        ]
+
+    async def call_tool(self, name: str, arguments: dict[str, object]) -> str:
+        """Invoke any server tool by name and return its text output."""
+        session = self._require_session()
+        result = await session.call_tool(name, arguments)
         return _text_from_result(result)
 
     def _require_session(self) -> ClientSession:

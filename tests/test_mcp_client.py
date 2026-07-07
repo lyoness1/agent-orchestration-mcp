@@ -30,7 +30,7 @@ def test_client_fetch_url_returns_page_text(mock_fetch_http: MagicMock) -> None:
 
     async def run() -> str:
         async with in_process_client() as client:
-            return await client.fetch_url(url)
+            return await client.call_tool("fetch_url", {"url": url})
 
     result = anyio.run(run)
 
@@ -44,7 +44,7 @@ def test_client_fetch_url_surfaces_server_error_strings(mock_fetch_http: MagicMo
 
     async def run() -> str:
         async with in_process_client() as client:
-            return await client.fetch_url(url)
+            return await client.call_tool("fetch_url", {"url": url})
 
     result = anyio.run(run)
 
@@ -62,7 +62,7 @@ def test_client_fetch_url_truncates_long_pages(mock_fetch_http: MagicMock) -> No
 
     async def run() -> str:
         async with in_process_client() as client:
-            return await client.fetch_url(url)
+            return await client.call_tool("fetch_url", {"url": url})
 
     result = anyio.run(run)
 
@@ -72,7 +72,7 @@ def test_client_fetch_url_truncates_long_pages(mock_fetch_http: MagicMock) -> No
 def test_subprocess_client_rejects_invalid_url_without_network() -> None:
     async def run() -> str:
         async with MaestroMcpClient(server_params()) as client:
-            return await client.fetch_url("ftp://example.com/file")
+            return await client.call_tool("fetch_url", {"url": "ftp://example.com/file"})
 
     result = anyio.run(run)
 
