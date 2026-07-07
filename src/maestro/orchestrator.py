@@ -30,5 +30,9 @@ class Orchestrator:
     async def run(self, question: str) -> Report:
         """Answer ``question`` and return the resulting Report."""
         async with self._mcp_client_factory() as mcp:
-            summary = await research(question, mcp, self._llm)
-        return Report(question=question, summary=summary)
+            results = await research(question, mcp, self._llm)
+        return Report(
+            question=question,
+            summary=results.answer,
+            sources=tuple(s.url for s in results.sources if s.url),
+        )
