@@ -3,17 +3,14 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Iterator
-from contextlib import AbstractAsyncContextManager
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from maestro.mcp_client import MaestroMcpClient
-from maestro.orchestrator import PROBE_URL
+from maestro.llm_mock_responses import EXAMPLE_URL
+from maestro.mcp_client import McpClientFactory
 from mcp_test_helpers import DEFAULT_PAGE_TEXT, in_process_mcp_session, mock_response
-
-McpClientFactory = Callable[[], AbstractAsyncContextManager[MaestroMcpClient]]
 
 
 @pytest.fixture(autouse=True)
@@ -34,7 +31,7 @@ def mock_fetch_http() -> Iterator[MagicMock]:
     mock_client = MagicMock()
     mock_client.get.return_value = mock_response(
         text=f"<html><body><p>{DEFAULT_PAGE_TEXT}</p></body></html>",
-        url=PROBE_URL,
+        url=EXAMPLE_URL,
     )
     with patch("maestro.mcp_server.fetch_url.httpx.Client") as mock_client_cls:
         mock_client_cls.return_value.__enter__.return_value = mock_client

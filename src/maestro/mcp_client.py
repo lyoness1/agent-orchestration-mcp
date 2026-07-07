@@ -5,7 +5,8 @@ from __future__ import annotations
 import os
 import shutil
 import sys
-from contextlib import AsyncExitStack
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager, AsyncExitStack
 from typing import Self
 
 import mcp.types as types
@@ -99,3 +100,6 @@ class MaestroMcpClient:
             msg = "MCP client is not connected; use connect() or async with MaestroMcpClient()"
             raise RuntimeError(msg)
         return self._session
+
+
+McpClientFactory = Callable[[], AbstractAsyncContextManager[MaestroMcpClient]]
