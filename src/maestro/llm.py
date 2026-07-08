@@ -8,21 +8,13 @@ same loop works for any agent that supplies tool schemas and an executor.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Awaitable, Callable
 from typing import Any
 
 from anthropic import AsyncAnthropic
 from anthropic.types import Message, ToolParam
 
-# Alias tracks the latest Sonnet; override per call if a run needs a different model.
-DEFAULT_MODEL = "claude-sonnet-4-5"
-DEFAULT_MAX_TOKENS = 4096
-
-# Cap on model turns in the tool loop. Without a bound a confused model can call
-# tools forever, burning tokens and wall-clock time; see DESIGN.md operational
-# constraints. When the budget runs out we force one final tool-free answer.
-DEFAULT_MAX_TURNS = 8
+from maestro.settings import settings
 
 _FORCE_ANSWER = (
     "You have reached the research budget. Stop calling tools and answer the "
@@ -52,13 +44,13 @@ class LlmClient:
     def __init__(
         self,
         *,
-        model: str = DEFAULT_MODEL,
-        max_tokens: int = DEFAULT_MAX_TOKENS,
-        max_turns: int = DEFAULT_MAX_TURNS,
+        model: str = settings.LLM_DEFAULT_MODEL,
+        max_tokens: int = settings.LLM_DEFAULT_MAX_TOKENS,
+        max_turns: int = settings.LLM_DEFAULT_MAX_TURNS,
     ) -> None:
         # Fail before any network call if the key is missing, so callers get a
         # clear error instead of an opaque auth failure mid-run.
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = settings.ANTHROPIC_API_KEY
         if not api_key:
             raise MissingApiKeyError
         self._client = AsyncAnthropic(api_key=api_key)

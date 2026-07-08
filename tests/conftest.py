@@ -9,7 +9,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from maestro import llm as llm_module
+from maestro import settings as settings_module
 from maestro.mcp_client import MaestroMcpClient
+from maestro.settings import Settings
 from mcp_test_helpers import DEFAULT_PAGE_TEXT, in_process_mcp_session, mock_response
 
 McpClientFactory = Callable[[], AbstractAsyncContextManager[MaestroMcpClient]]
@@ -21,7 +24,9 @@ _DEFAULT_URL = "https://example.com/"
 @pytest.fixture(autouse=True)
 def _dummy_anthropic_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """Always provide a non-empty test key unless a test overrides it."""
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy-anthropic-api-key")
+    dummy = Settings(ANTHROPIC_API_KEY="dummy-anthropic-api-key")
+    monkeypatch.setattr(settings_module, "settings", dummy)
+    monkeypatch.setattr(llm_module, "settings", dummy)
 
 
 @pytest.fixture(autouse=True)

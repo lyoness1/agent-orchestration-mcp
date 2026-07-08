@@ -6,15 +6,8 @@ import re
 
 import httpx
 
-# Fail fast on slow hosts; agents can retry or pick another source.
-REQUEST_TIMEOUT = 10.0
+from maestro.settings import settings
 
-# Cap tool output before it re-enters the LLM context. Tokens are rough (~4
-# ASCII chars per token for English; model and content vary). Uncapped pages
-# blow the context window and add cost/latency. Tune by task: quick skim 4k-8k,
-# deeper read 10k-20k; above ~20k use chunking (multiple fetches or ingest)
-# instead of one blob.
-MAX_CHARS = 6000
 _USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
@@ -53,13 +46,13 @@ def fetch_url(url: str) -> str:
     try:
         with httpx.Client(
             follow_redirects=True,
-            timeout=REQUEST_TIMEOUT,
+            timeout=settings.MCP_REQUEST_TIMEOUT,
             headers={"User-Agent": _USER_AGENT},
         ) as client:
             response = client.get(url)
             response.raise_for_status()
     except httpx.TimeoutException:
-        return f"Error: request to {url} timed out after {REQUEST_TIMEOUT:g}s."
+        return f"Error: request to {url} timed out after {settings.MCP_REQUEST_TIMEOUT:g}s."
     except httpx.HTTPStatusError as exc:
         return f"Error: {url} returned HTTP {exc.response.status_code}."
     except httpx.RequestError as exc:
@@ -73,6 +66,9 @@ def fetch_url(url: str) -> str:
     if not text:
         return f"Error: no readable content found at {url}."
 
-    if len(text) > MAX_CHARS:
-        text = text[:MAX_CHARS].rstrip() + f"\n\n[... truncated to {MAX_CHARS} characters ...]"
+    if len(text) > settings.MCP_MAX_CHARS:
+        text = (
+            text[: settings.MCP_MAX_CHARS].rstrip()
+            + f"\n\n[... truncated to {settings.MCP_MAX_CHARS} characters ...]"
+        )
     return text

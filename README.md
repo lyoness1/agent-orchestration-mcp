@@ -4,7 +4,7 @@
 LLMs, agents, and the Model Context Protocol (MCP).
 
 > **Status:** Researcher agent with live Anthropic tool-use loop. Copy `.env.example` to
-> `.env` for local secrets; the CLI loads `.env` automatically on startup.
+> `.env` for local secrets; the orchestrator loads `.env` automatically on startup.
 
 ## Architecture
 
@@ -28,10 +28,12 @@ cp .env.example .env
 Edit `.env` and set your real `ANTHROPIC_API_KEY`. This creates a project-local virtual
 environment in `.venv/` and installs dependencies.
 
-`src/maestro/constants.py` defines defaults (`ANTHROPIC_API_KEY: str | None = None`).
-On CLI startup, `load_env()` applies precedence: `.env` > constants defaults (`.env`
-overwrites shell exports for keys it defines). Tests set `dummy-anthropic-api-key` via
-pytest fixtures so they never skip for a missing key.
+`src/maestro/settings.py` defines settings via a `Settings` dataclass and exports a
+module-level `settings` object.
+On startup, `load_settings()` applies `.env` values over dataclass defaults. LLM and MCP
+tuning defaults live in the `Settings` dataclass; `.env` is mainly for secrets like the
+API key. Tests set `dummy-anthropic-api-key` via pytest fixtures so they never skip for
+a missing key.
 
 ## Usage
 
@@ -47,8 +49,9 @@ python -m maestro "What are the trade-offs of MCP versus plain function calling?
 
 Or run without activating: `uv run maestro "..."`.
 
-The CLI calls `load_env()` on startup to read `.env` from the project root. You do not
-need to `export` variables manually for local development.
+The application imports the module-level `settings` object from `src/maestro/settings.py`,
+which is built by `load_settings()` using `.env` at process startup.
+You do not need to `export` variables manually for local development.
 
 ### MCP tool server
 
@@ -88,7 +91,7 @@ agent-orchestration-mcp/
 ├── src/maestro/
 │   ├── __main__.py               # enables `python -m maestro`
 │   ├── cli.py                    # command-line entry point
-│   ├── constants.py              # defaults + env overrides
+│   ├── settings.py              # defaults + env overrides
 │   ├── orchestrator.py           # coordinates the agent pipeline
 │   ├── llm.py                    # Anthropic tool-use loop
 │   ├── mcp_client.py             # MCP session; tool bridge
