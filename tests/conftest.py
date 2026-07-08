@@ -23,7 +23,11 @@ _DEFAULT_URL = "https://example.com/"
 
 @pytest.fixture(autouse=True)
 def _dummy_anthropic_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Always provide a non-empty test key unless a test overrides it."""
+    """Always provide a non-empty test key unless a test overrides it.
+
+    ``from maestro.settings import settings`` binds a copy in each consumer module,
+    so patch both the source module and any modules that imported ``settings``.
+    """
     dummy = Settings(ANTHROPIC_API_KEY="dummy-anthropic-api-key")
     monkeypatch.setattr(settings_module, "settings", dummy)
     monkeypatch.setattr(llm_module, "settings", dummy)

@@ -4,7 +4,7 @@
 LLMs, agents, and the Model Context Protocol (MCP).
 
 > **Status:** Researcher agent with live Anthropic tool-use loop. Copy `.env.example` to
-> `.env` for local secrets; the orchestrator loads `.env` automatically on startup.
+> `.env` for local configuration; settings load automatically when the process starts.
 
 ## Architecture
 
@@ -28,12 +28,29 @@ cp .env.example .env
 Edit `.env` and set your real `ANTHROPIC_API_KEY`. This creates a project-local virtual
 environment in `.venv/` and installs dependencies.
 
-`src/maestro/settings.py` defines settings via a `Settings` dataclass and exports a
-module-level `settings` object.
-On startup, `load_settings()` applies `.env` values over dataclass defaults. LLM and MCP
-tuning defaults live in the `Settings` dataclass; `.env` is mainly for secrets like the
-API key. Tests set `dummy-anthropic-api-key` via pytest fixtures so they never skip for
-a missing key.
+## Configuration
+
+Settings live in `src/maestro/settings.py`:
+
+- A `Settings` dataclass defines defaults (API key, LLM model/token limits, MCP fetch limits).
+- `load_settings()` merges a project-root `.env` file over those defaults when the module is first imported.
+- The module exports a singleton: `settings = load_settings()`.
+
+Precedence: **`.env` > dataclass defaults**. Numeric values in `.env` are coerced to match
+the field type (`int` / `float` / `str`). See `.env.example` for available keys.
+
+Application code imports the singleton directly:
+
+```python
+from maestro.settings import settings
+
+api_key = settings.ANTHROPIC_API_KEY
+```
+
+Each process loads its own settings snapshot — for example, `maestro` and the separate
+`maestro-mcp` server each read `.env` at startup.
+
+Tests patch `settings` on each module that imported it (see `tests/conftest.py`).
 
 ## Usage
 
@@ -49,9 +66,7 @@ python -m maestro "What are the trade-offs of MCP versus plain function calling?
 
 Or run without activating: `uv run maestro "..."`.
 
-The application imports the module-level `settings` object from `src/maestro/settings.py`,
-which is built by `load_settings()` using `.env` at process startup.
-You do not need to `export` variables manually for local development.
+If `ANTHROPIC_API_KEY` is unset, the run fails early with `MissingApiKeyError`.
 
 ### MCP tool server
 
