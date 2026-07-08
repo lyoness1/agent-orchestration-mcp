@@ -3,9 +3,8 @@
 `maestro` is a multi-agent system that researches a prompt and writes a cited report, using
 LLMs, agents, and the Model Context Protocol (MCP).
 
-> **Status:** early development. Running `maestro` fetches a page via the MCP client
-> and puts the text in the report summary. API keys are introduced only when a step
-> requires them.
+> **Status:** Researcher agent with live Anthropic tool-use loop. Copy `.env.example` to
+> `.env` for local secrets; the CLI loads `.env` automatically on startup.
 
 ## Architecture
 
@@ -23,9 +22,16 @@ and v1 scope, see **[DESIGN.md](DESIGN.md)**.
 
 ```bash
 uv sync
+cp .env.example .env
 ```
 
-This creates a project-local virtual environment in `.venv/` and installs dependencies.
+Edit `.env` and set your real `ANTHROPIC_API_KEY`. This creates a project-local virtual
+environment in `.venv/` and installs dependencies.
+
+`src/maestro/constants.py` defines defaults (`ANTHROPIC_API_KEY: str | None = None`).
+On CLI startup, `load_env()` applies precedence: `.env` > constants defaults (`.env`
+overwrites shell exports for keys it defines). Tests set `dummy-anthropic-api-key` via
+pytest fixtures so they never skip for a missing key.
 
 ## Usage
 
@@ -40,6 +46,9 @@ python -m maestro "What are the trade-offs of MCP versus plain function calling?
 ```
 
 Or run without activating: `uv run maestro "..."`.
+
+The CLI calls `load_env()` on startup to read `.env` from the project root. You do not
+need to `export` variables manually for local development.
 
 ### MCP tool server
 
@@ -73,14 +82,19 @@ check, and tests on every pull request to `main`.
 agent-orchestration-mcp/
 ├── pyproject.toml                # project metadata, dependencies, tooling config
 ├── DESIGN.md                     # architecture and design decisions
+├── .env.example                  # env template (copy to .env)
 ├── .pre-commit-config.yaml       # ruff lint/format on commit
 ├── .github/workflows/ci.yml      # lint + test on each PR
 ├── src/maestro/
 │   ├── __main__.py               # enables `python -m maestro`
 │   ├── cli.py                    # command-line entry point
+│   ├── constants.py              # defaults + env overrides
 │   ├── orchestrator.py           # coordinates the agent pipeline
-│   ├── mcp_client.py             # MCP session; spawns maestro-mcp, fetch_url
-│   ├── models.py                 # shared data types (Report, ...)
+│   ├── llm.py                    # Anthropic tool-use loop
+│   ├── mcp_client.py             # MCP session; tool bridge
+│   ├── models.py                 # ResearchSource, ResearchResults, Report
+│   ├── agents/
+│   │   └── researcher.py         # LLM-driven web research
 │   └── mcp_server/               # standalone MCP tool server (fetch_url)
 └── tests/                        # pytest suite
 ```

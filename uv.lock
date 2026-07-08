@@ -380,6 +380,7 @@ dependencies = [
     { name = "anthropic" },
     { name = "httpx" },
     { name = "mcp" },
+    { name = "python-dotenv" },
 ]
 
 [package.dev-dependencies]
@@ -393,6 +394,7 @@ requires-dist = [
     { name = "anthropic", specifier = ">=0.116.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "mcp", specifier = ">=1.28.1" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
 ]
 
 [package.metadata.requires-dev]

@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 
+from maestro.constants import load_env
 from maestro.orchestrator import Orchestrator
 
 # Used when the CLI is invoked with no question, so `maestro` alone still runs.
@@ -32,6 +33,7 @@ def _parse_question(argv: list[str] | None) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI: research the question, print the report, return an exit code."""
+    load_env()
     question = _parse_question(argv)
     # asyncio.run is the single sync -> async boundary: the CLI stays synchronous
     # while the orchestrator and everything it awaits are async.

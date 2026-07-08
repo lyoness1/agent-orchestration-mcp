@@ -19,6 +19,12 @@ _DEFAULT_URL = "https://example.com/"
 
 
 @pytest.fixture(autouse=True)
+def _dummy_anthropic_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Always provide a non-empty test key unless a test overrides it."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy-anthropic-api-key")
+
+
+@pytest.fixture(autouse=True)
 def _suppress_noisy_loggers() -> Iterator[None]:
     """Keep httpx/MCP info logs off stderr during tests."""
     loggers = ("httpx", "httpcore", "mcp")

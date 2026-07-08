@@ -9,6 +9,7 @@ dependencies = [
     "anthropic>=0.116.0",
     "httpx>=0.28.1",
     "mcp>=1.28.1",
+    "python-dotenv>=1.2.2",
 ]
 
 # Registers the `maestro` command (wired to cli.main) when the project is installed.

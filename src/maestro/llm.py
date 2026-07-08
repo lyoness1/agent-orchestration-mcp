@@ -15,8 +15,6 @@ from typing import Any
 from anthropic import AsyncAnthropic
 from anthropic.types import Message, ToolParam
 
-API_KEY_ENV = "ANTHROPIC_API_KEY"
-
 # Alias tracks the latest Sonnet; override per call if a run needs a different model.
 DEFAULT_MODEL = "claude-sonnet-4-5"
 DEFAULT_MAX_TOKENS = 4096
@@ -39,7 +37,7 @@ class MissingApiKeyError(RuntimeError):
     """Raised when the Anthropic API key is not present in the environment."""
 
     def __init__(self) -> None:
-        super().__init__(f"{API_KEY_ENV} is not set. Export a valid Anthropic API key and re-run.")
+        super().__init__("ANTHROPIC_API_KEY is not set.")
 
 
 def _text_from_message(message: Message) -> str:
@@ -60,9 +58,10 @@ class LlmClient:
     ) -> None:
         # Fail before any network call if the key is missing, so callers get a
         # clear error instead of an opaque auth failure mid-run.
-        if not os.environ.get(API_KEY_ENV):
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
             raise MissingApiKeyError
-        self._client = AsyncAnthropic()
+        self._client = AsyncAnthropic(api_key=api_key)
         self._model = model
         self._max_tokens = max_tokens
         self._max_turns = max_turns
