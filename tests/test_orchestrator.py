@@ -1,29 +1,48 @@
-"""Orchestrator tests.
-
-The orchestrator now drives a live Anthropic tool-use loop, so the end-to-end
-test is not mocked: it is skipped unless a real API key is present and hits the
-network when it runs.
-"""
-
 import asyncio
-import os
+from typing import Any
 
 import pytest
 
-from maestro.llm import API_KEY_ENV
+from maestro.llm import MissingApiKeyError, ToolExecutor
 from maestro.models import Report
 from maestro.orchestrator import Orchestrator
-
-requires_api_key = pytest.mark.skipif(
-    not os.environ.get(API_KEY_ENV),
-    reason=f"{API_KEY_ENV} not set; live Anthropic API and network required",
-)
+from maestro.settings import Settings
+from mcp_test_helpers import DEFAULT_PAGE_TEXT
 
 
-@requires_api_key
-def test_run_researches_question_live() -> None:
-    report = asyncio.run(Orchestrator().run("What is the Model Context Protocol?"))
+class FakeLlm:
+    """Test double that mimics one tool call followed by an answer."""
+
+    async def run_tool_loop(
+        self,
+        *,
+        system: str,
+        prompt: str,
+        tools: list[dict[str, Any]],
+        execute_tool: ToolExecutor,
+    ) -> str:
+        _ = system
+        _ = prompt
+        _ = tools
+        output = await execute_tool("fetch_url", {"url": "https://example.com/"})
+        return f"Research complete: {output}"
+
+
+def test_run_builds_report_from_research_results(in_process_mcp_factory) -> None:
+    report = asyncio.run(
+        Orchestrator(mcp_client_factory=in_process_mcp_factory, llm=FakeLlm()).run(
+            "What is the Model Context Protocol?"
+        )
+    )
 
     assert isinstance(report, Report)
     assert report.question == "What is the Model Context Protocol?"
-    assert report.summary.strip()
+    assert report.summary == f"Research complete: {DEFAULT_PAGE_TEXT}"
+    assert report.sources == ("https://example.com/",)
+
+
+def test_orchestrator_raises_when_key_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("maestro.llm.settings", Settings(ANTHROPIC_API_KEY=None))
+
+    with pytest.raises(MissingApiKeyError):
+        Orchestrator()

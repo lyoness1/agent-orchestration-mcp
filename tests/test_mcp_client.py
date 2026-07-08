@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import anyio
 
 from maestro.mcp_client import MaestroMcpClient, default_server_params
-from maestro.mcp_server.fetch_url import MAX_CHARS
+from maestro.settings import settings
 from mcp_test_helpers import DEFAULT_PAGE_TEXT, in_process_client, mock_response, server_params
 
 
@@ -53,7 +53,7 @@ def test_client_fetch_url_surfaces_server_error_strings(mock_fetch_http: MagicMo
 
 def test_client_fetch_url_truncates_long_pages(mock_fetch_http: MagicMock) -> None:
     url = "https://example.com/long"
-    long_text = "z" * (MAX_CHARS + 50)
+    long_text = "z" * (settings.MCP_MAX_CHARS + 50)
     mock_fetch_http.get.return_value = mock_response(
         text=f"<html><body><p>{long_text}</p></body></html>",
         content_type="text/plain; charset=utf-8",
@@ -66,7 +66,7 @@ def test_client_fetch_url_truncates_long_pages(mock_fetch_http: MagicMock) -> No
 
     result = anyio.run(run)
 
-    assert f"[... truncated to {MAX_CHARS} characters ...]" in result
+    assert f"[... truncated to {settings.MCP_MAX_CHARS} characters ...]" in result
 
 
 def test_subprocess_client_rejects_invalid_url_without_network() -> None:

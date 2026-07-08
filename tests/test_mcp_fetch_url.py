@@ -5,13 +5,11 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import httpx
+import pytest
 
-from maestro.mcp_server.fetch_url import (
-    MAX_CHARS,
-    REQUEST_TIMEOUT,
-    fetch_url,
-)
+from maestro.mcp_server.fetch_url import fetch_url
 from maestro.mcp_server.server import mcp
+from maestro.settings import settings
 
 
 def _mock_response(
@@ -95,7 +93,10 @@ def test_fetch_url_handles_timeout(mock_client_cls: MagicMock) -> None:
 
     result = fetch_url("https://example.com/slow")
 
-    expected = f"Error: request to https://example.com/slow timed out after {REQUEST_TIMEOUT:g}s."
+    expected = (
+        f"Error: request to https://example.com/slow timed out after "
+        f"{settings.MCP_REQUEST_TIMEOUT:g}s."
+    )
     assert result == expected
 
 
@@ -154,7 +155,7 @@ def test_fetch_url_returns_error_when_no_readable_content(mock_client_cls: Magic
 def test_fetch_url_truncates_long_content(mock_client_cls: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client_cls.return_value.__enter__.return_value = mock_client
-    long_text = "x" * (MAX_CHARS + 100)
+    long_text = "x" * (settings.MCP_MAX_CHARS + 100)
     mock_client.get.return_value = _mock_response(
         text=f"<html><body><p>{long_text}</p></body></html>",
         content_type="text/plain; charset=utf-8",
@@ -163,7 +164,33 @@ def test_fetch_url_truncates_long_content(mock_client_cls: MagicMock) -> None:
     result = fetch_url("https://example.com/long")
 
     assert len(result) < len(long_text)
-    assert f"[... truncated to {MAX_CHARS} characters ...]" in result
+    assert f"[... truncated to {settings.MCP_MAX_CHARS} characters ...]" in result
+
+
+@patch("maestro.mcp_server.fetch_url.httpx.Client")
+def test_fetch_url_uses_patched_max_chars(
+    mock_client_cls: MagicMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from dataclasses import replace
+
+    import maestro.mcp_server.fetch_url as fetch_url_module
+    import maestro.settings as settings_module
+
+    patched = replace(settings, MCP_MAX_CHARS=100)
+    monkeypatch.setattr(settings_module, "settings", patched)
+    monkeypatch.setattr(fetch_url_module, "settings", patched)
+    mock_client = MagicMock()
+    mock_client_cls.return_value.__enter__.return_value = mock_client
+    long_text = "x" * 150
+    mock_client.get.return_value = _mock_response(
+        text=f"<html><body><p>{long_text}</p></body></html>",
+        content_type="text/plain; charset=utf-8",
+    )
+
+    result = fetch_url("https://example.com/long")
+
+    assert "[... truncated to 100 characters ...]" in result
 
 
 def test_mcp_server_exposes_fetch_url_tool() -> None:
